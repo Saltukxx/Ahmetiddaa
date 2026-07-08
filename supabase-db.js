@@ -38,6 +38,10 @@ function isSupabaseReady() {
   return supabaseReady;
 }
 
+function canUseSupabase() {
+  return Boolean(supabaseClient && isSupabaseConfigured());
+}
+
 function getAlacaklilarCache() {
   return alacaklilarCache;
 }
@@ -91,6 +95,34 @@ async function fetchAllAlacaklilar() {
   return alacaklilarCache;
 }
 
+async function migrateLegacyAlacaklilar() {
+  if (!supabaseClient) return;
+
+  const legacy = loadLegacyAlacaklilar();
+  if (legacy.length === 0) return;
+
+  const rows = legacy
+    .filter((item) => !item.id || String(item.id).startsWith("local-"))
+    .map((item) => ({
+      isim: String(item.isim ?? "").trim(),
+      miktar: Number(item.miktar) || 0,
+      tarih: item.tarih || null,
+      kayit_zamani: item.kayitZamani ?? new Date().toISOString(),
+    }))
+    .filter((item) => item.isim && item.miktar > 0);
+
+  if (rows.length === 0) {
+    localStorage.removeItem(LEGACY_ALACAKLI_KEY);
+    return;
+  }
+
+  const { error } = await supabaseClient.from(ALACAKLI_TABLE_NAME).insert(rows);
+  if (error) throw error;
+
+  await fetchAllAlacaklilar();
+  localStorage.removeItem(LEGACY_ALACAKLI_KEY);
+}
+
 async function saveAlacakliToDb(alacakli) {
   const payload = {
     isim: alacakli.isim.trim(),
@@ -98,7 +130,7 @@ async function saveAlacakliToDb(alacakli) {
     tarih: alacakli.tarih || null,
   };
 
-  if (supabaseReady && supabaseClient) {
+  if (canUseSupabase()) {
     if (alacakli.id && !String(alacakli.id).startsWith("local-")) {
       const { error } = await supabaseClient
         .from(ALACAKLI_TABLE_NAME)
@@ -138,7 +170,7 @@ async function saveAlacakliToDb(alacakli) {
 }
 
 async function deleteAlacakliFromDb(id) {
-  if (supabaseReady && supabaseClient) {
+  if (canUseSupabase()) {
     const { error } = await supabaseClient.from(ALACAKLI_TABLE_NAME).delete().eq("id", id);
     if (error) throw error;
   } else {
@@ -255,8 +287,22 @@ async function initSupabaseDb() {
   supabaseClient = window.supabase.createClient(url, anonKey);
 
   await fetchAllRecords();
-  await fetchAllAlacaklilar();
+
+  try {
+    await fetchAllAlacaklilar();
+  } catch (error) {
+    console.error("Alacaklı kayıtları yüklenemedi:", error);
+    setAlacaklilarCache(loadLegacyAlacaklilar());
+  }
+
   await migrateLegacyRecords();
+
+  try {
+    await migrateLegacyAlacaklilar();
+  } catch (error) {
+    console.error("Yerel alacaklı kayıtları taşınamadı:", error);
+  }
+
   subscribeToChanges();
 
   supabaseReady = true;
@@ -264,7 +310,7 @@ async function initSupabaseDb() {
 }
 
 async function saveRecordToDb(kayit) {
-  if (supabaseReady && supabaseClient) {
+  if (canUseSupabase()) {
     const { error } = await supabaseClient.from(TABLE_NAME).upsert(
       {
         tarih: kayit.tarih,
@@ -292,7 +338,7 @@ async function saveRecordToDb(kayit) {
 }
 
 async function deleteRecordFromDb(tarih) {
-  if (supabaseReady && supabaseClient) {
+  if (canUseSupabase()) {
     const { error } = await supabaseClient.from(TABLE_NAME).delete().eq("tarih", tarih);
     if (error) throw error;
   } else {
