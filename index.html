@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1419" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>İddaa Günlük Hesap</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>İddaa Günlük Hesap</h1>
+      <div class="date-row">
+        <label for="hesap-tarihi">Tarih</label>
+        <input type="date" id="hesap-tarihi" />
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="card kazi-card">
+        <h2>Kazı-Kazan Hesabı</h2>
+        <p class="card-desc">Bilet sayımı ile günlük satış miktarını hesaplayın</p>
+
+        <div class="kazi-stok">
+          <label>Önceki Gün Stok<input type="text" inputmode="decimal" data-kazi="onceki-gun" placeholder="0" /></label>
+          <label>Yeni Teslimat<input type="text" inputmode="decimal" data-kazi="teslimat" placeholder="0" /></label>
+        </div>
+        <p class="kazi-stok-note">Önceki gün stok otomatik gelir. Yeni teslimat bu tutarın üzerine eklenir.</p>
+
+        <h3 class="kazi-subtitle">Bugün Elimde — Bilet Sayımı</h3>
+
+        <div class="kazi-extras">
+          <label>Karışık<input type="text" inputmode="decimal" data-kazi="karisik" placeholder="0" /></label>
+          <label>Cam<input type="text" inputmode="decimal" data-kazi="cam" placeholder="0" /></label>
+        </div>
+
+        <div class="kazi-table-wrap">
+          <table class="kazi-table">
+            <thead>
+              <tr>
+                <th>Fiyat</th>
+                <th>Adet</th>
+                <th>Toplam</th>
+              </tr>
+            </thead>
+            <tbody id="kazi-rows"></tbody>
+            <tfoot>
+              <tr class="kazi-col-totals">
+                <td colspan="2">Bilet Toplamı</td>
+                <td id="kazi-bilet-toplam">0,00 ₺</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <button type="button" class="btn btn-secondary kazi-satir-ekle" id="kazi-satir-ekle">+ Satır Ekle</button>
+
+        <div class="subtotal">
+          <span>Bugün Sayım (Elimde)</span>
+          <strong id="kazi-sayim">0,00 ₺</strong>
+        </div>
+
+        <div class="kazi-satis-block">
+          <div class="subtotal">
+            <span>Toplam Stok (Önceki + Teslimat)</span>
+            <strong id="kazi-toplam-stok">0,00 ₺</strong>
+          </div>
+          <div class="subtotal kazi-satis">
+            <span>Günlük Satış</span>
+            <strong id="kazi-satis">0,00 ₺</strong>
+          </div>
+          <p class="kazi-formula-note">
+            Günlük Satış = (Önceki Gün Stok + Yeni Teslimat) − Bugün Sayım
+          </p>
+        </div>
+        <p class="kazi-sync-note">Günlük satış otomatik olarak 1. tablodaki Kazı-Kazan alanına yazılır.</p>
+      </section>
+
+      <section class="card">
+        <h2>1. Tablo — Gün Sonu</h2>
+        <p class="card-desc">Makine ve kasa değerlerini girin</p>
+        <div class="table-grid" id="tablo1">
+          <label>1. Makine<input type="text" inputmode="decimal" data-field="makine1" placeholder="0" /></label>
+          <label>2. Makine<input type="text" inputmode="decimal" data-field="makine2" placeholder="0" /></label>
+          <label>İddaa<input type="text" inputmode="decimal" data-field="iddaa" placeholder="0" /></label>
+          <label>Kazı-Kazan<input type="text" inputmode="decimal" data-field="kazi-kazan" id="kazi-kazan-tablo1" placeholder="0" readonly title="Kazı-Kazan hesabından otomatik gelir" /></label>
+          <label>Mehmet Bey<input type="text" inputmode="decimal" data-field="mehmet-bey" placeholder="0" /></label>
+        </div>
+        <div class="subtotal">
+          <span>Toplam</span>
+          <strong id="toplam1">0,00 ₺</strong>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2. Tablo — Defter & Nakit</h2>
+        <p class="card-desc">Defter ve nakit kayıtlarını girin</p>
+        <div class="table-grid" id="tablo2">
+          <label>Defter<input type="text" inputmode="decimal" data-field="defter" placeholder="0" /></label>
+          <label>Nakit<input type="text" inputmode="decimal" data-field="nakit" placeholder="0" /></label>
+          <label>1. Makine<input type="text" inputmode="decimal" data-field="makine1" placeholder="0" /></label>
+          <label>2. Makine<input type="text" inputmode="decimal" data-field="makine2" placeholder="0" /></label>
+          <label>İddaa<input type="text" inputmode="decimal" data-field="iddaa" placeholder="0" /></label>
+        </div>
+        <div class="subtotal">
+          <span>Toplam</span>
+          <strong id="toplam2">0,00 ₺</strong>
+        </div>
+      </section>
+
+      <section class="result-card" id="sonuc-kart">
+        <div class="result-header">
+          <span class="result-label">Hesap Sonucu</span>
+          <span class="result-badge" id="durum-badge">—</span>
+        </div>
+        <div class="result-amount" id="fark">0,00 ₺</div>
+        <p class="result-formula">
+          2. Tablo Toplamı (<span id="formul-toplam2">0,00 ₺</span>)
+          − 1. Tablo Toplamı (<span id="formul-toplam1">0,00 ₺</span>)
+        </p>
+        <p class="result-hint" id="durum-aciklama">Değerleri girerek hesap yapın.</p>
+      </section>
+
+      <section class="card not-card">
+        <h2>Not</h2>
+        <p class="card-desc">Güne ait hatırlatmalar veya açıklamalar</p>
+        <textarea id="gun-notu" class="gun-notu" rows="4" placeholder="Notunuzu buraya yazın..."></textarea>
+      </section>
+
+      <div class="actions">
+        <button type="button" class="btn btn-secondary" id="temizle-btn">Temizle</button>
+        <button type="button" class="btn btn-primary" id="kaydet-btn">Kaydet</button>
+      </div>
+
+      <section class="card history-card" id="gecmis-bolum">
+        <h2>Geçmiş Kayıtlar</h2>
+        <div id="gecmis-liste" class="history-list">
+          <p class="empty-state">Henüz kayıt yok.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
