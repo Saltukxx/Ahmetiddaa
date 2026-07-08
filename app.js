@@ -528,19 +528,19 @@ function loadGunKaydi(tarih) {
 function updateSyncStatus() {
   if (!els.syncStatus) return;
 
-  if (isFirebaseReady()) {
-    els.syncStatus.textContent = "Firebase — bulut senkron";
+  if (isSupabaseReady()) {
+    els.syncStatus.textContent = "Supabase — tüm cihazlar senkron";
     els.syncStatus.className = "sync-status sync-status--cloud";
     return;
   }
 
-  if (isFirebaseConfigured()) {
-    els.syncStatus.textContent = "Firebase bağlantısı kurulamadı";
+  if (isSupabaseConfigured()) {
+    els.syncStatus.textContent = "Supabase bağlantısı kurulamadı";
     els.syncStatus.className = "sync-status sync-status--error";
     return;
   }
 
-  els.syncStatus.textContent = "Yerel kayıt (firebase-config.js ayarlayın)";
+  els.syncStatus.textContent = "Yerel kayıt (supabase-config.js ayarlayın)";
   els.syncStatus.className = "sync-status sync-status--local";
 }
 
@@ -711,8 +711,15 @@ function init() {
 async function bootstrap() {
   init();
 
+  window.addEventListener("kayitlar-sync", () => {
+    const currentDate = els.tarih.value;
+    loadGunKaydi(currentDate);
+    renderGecmis();
+    updateSyncStatus();
+  });
+
   try {
-    await initFirebaseDb();
+    await initSupabaseDb();
   } catch (error) {
     console.error(error);
     setRecordsCache(loadLegacyRecords());
