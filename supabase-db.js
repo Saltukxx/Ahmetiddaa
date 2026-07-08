@@ -1,11 +1,12 @@
 const TABLE_NAME = "kayitlar";
-const ALACAKLI_TABLE_NAME = "alacaklilar";
+const BORCLU_TABLE_NAME = "borclular";
 const LEGACY_STORAGE_KEY = "iddaa-gunluk-hesap";
+const LEGACY_BORCLU_KEY = "iddaa-borclular";
 const LEGACY_ALACAKLI_KEY = "iddaa-alacaklilar";
 
 let supabaseClient = null;
 let recordsCache = [];
-let alacaklilarCache = [];
+let borclularCache = [];
 let supabaseReady = false;
 let realtimeChannel = null;
 
@@ -42,144 +43,263 @@ function canUseSupabase() {
   return Boolean(supabaseClient && isSupabaseConfigured());
 }
 
-function getAlacaklilarCache() {
-  return alacaklilarCache;
+function normalizeIsim(isim) {
+  return String(isim ?? "").trim();
 }
 
-function setAlacaklilarCache(items) {
-  alacaklilarCache = items.slice().sort((a, b) => {
+function isimKey(isim) {
+  return normalizeIsim(isim).toLocaleLowerCase("tr");
+}
+
+function createHareket(tur, miktar, tarih) {
+  return {
+    tur,
+    miktar,
+    tarih: tarih || null,
+    zaman: new Date().toISOString(),
+  };
+}
+
+function getBorclularCache() {
+  return borclularCache;
+}
+
+function setBorclularCache(items) {
+  borclularCache = items.slice().sort((a, b) => {
     const nameCompare = a.isim.localeCompare(b.isim, "tr");
     if (nameCompare !== 0) return nameCompare;
-    return (b.tarih ?? "").localeCompare(a.tarih ?? "");
+    return (b.bakiye ?? 0) - (a.bakiye ?? 0);
   });
 }
 
-function rowToAlacakli(row) {
+function rowToBorclu(row) {
   return {
     id: row.id,
     isim: row.isim,
-    miktar: Number(row.miktar) || 0,
-    tarih: row.tarih ?? null,
+    bakiye: Number(row.bakiye) || 0,
+    hareketler: Array.isArray(row.hareketler) ? row.hareketler : [],
     kayitZamani: row.kayit_zamani ?? new Date().toISOString(),
   };
 }
 
-function loadLegacyAlacaklilar() {
+function findBorcluByIsim(isim) {
+  const key = isimKey(isim);
+  return getBorclularCache().find((item) => isimKey(item.isim) === key) ?? null;
+}
+
+function loadLegacyBorclularRaw() {
+  const sources = [];
   try {
-    const raw = localStorage.getItem(LEGACY_ALACAKLI_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const borcluRaw = localStorage.getItem(LEGACY_BORCLU_KEY);
+    if (borcluRaw) sources.push(...JSON.parse(borcluRaw));
   } catch {
-    return [];
+    /* ignore */
   }
+  try {
+    const alacakliRaw = localStorage.getItem(LEGACY_ALACAKLI_KEY);
+    if (alacakliRaw) sources.push(...JSON.parse(alacakliRaw));
+  } catch {
+    /* ignore */
+  }
+  return sources;
 }
 
-function saveLegacyAlacaklilar(items) {
-  localStorage.setItem(LEGACY_ALACAKLI_KEY, JSON.stringify(items));
+function legacyItemsToBorclular(items) {
+  const grouped = new Map();
+
+  for (const item of items) {
+    const isim = normalizeIsim(item.isim);
+    if (!isim) continue;
+
+    const key = isimKey(isim);
+    const miktar = Number(item.bakiye ?? item.miktar) || 0;
+    if (miktar <= 0 && !item.bakiye) continue;
+
+    const hareket = createHareket(
+      item.tur ?? "borc_al",
+      miktar,
+      item.tarih ?? null
+    );
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        id: item.id && !String(item.id).startsWith("local-") ? item.id : createLocalId(),
+        isim,
+        bakiye: 0,
+        hareketler: [],
+        kayitZamani: item.kayitZamani ?? new Date().toISOString(),
+      });
+    }
+
+    const borclu = grouped.get(key);
+    borclu.bakiye += miktar;
+    borclu.hareketler.push(hareket);
+  }
+
+  return [...grouped.values()];
 }
 
-async function fetchAllAlacaklilar() {
+function loadLegacyBorclular() {
+  return legacyItemsToBorclular(loadLegacyBorclularRaw());
+}
+
+function saveLegacyBorclular(items) {
+  localStorage.setItem(LEGACY_BORCLU_KEY, JSON.stringify(items));
+}
+
+async function fetchAllBorclular() {
   if (!supabaseClient) {
-    const legacy = loadLegacyAlacaklilar();
-    setAlacaklilarCache(legacy);
-    return alacaklilarCache;
+    setBorclularCache(loadLegacyBorclular());
+    return borclularCache;
   }
 
   const { data, error } = await supabaseClient
-    .from(ALACAKLI_TABLE_NAME)
-    .select("id, isim, miktar, tarih, kayit_zamani")
+    .from(BORCLU_TABLE_NAME)
+    .select("id, isim, bakiye, hareketler, kayit_zamani")
     .order("isim", { ascending: true });
 
   if (error) throw error;
 
-  setAlacaklilarCache((data ?? []).map(rowToAlacakli));
-  return alacaklilarCache;
+  setBorclularCache((data ?? []).map(rowToBorclu));
+  return borclularCache;
 }
 
-async function migrateLegacyAlacaklilar() {
+async function migrateLegacyBorclular() {
   if (!supabaseClient) return;
 
-  const legacy = loadLegacyAlacaklilar();
-  if (legacy.length === 0) return;
-
-  const rows = legacy
-    .filter((item) => !item.id || String(item.id).startsWith("local-"))
-    .map((item) => ({
-      isim: String(item.isim ?? "").trim(),
-      miktar: Number(item.miktar) || 0,
-      tarih: item.tarih || null,
-      kayit_zamani: item.kayitZamani ?? new Date().toISOString(),
-    }))
-    .filter((item) => item.isim && item.miktar > 0);
-
-  if (rows.length === 0) {
+  const legacy = loadLegacyBorclular();
+  if (legacy.length === 0) {
     localStorage.removeItem(LEGACY_ALACAKLI_KEY);
     return;
   }
 
-  const { error } = await supabaseClient.from(ALACAKLI_TABLE_NAME).insert(rows);
-  if (error) throw error;
+  for (const borclu of legacy) {
+    if (!borclu.isim || borclu.bakiye <= 0) continue;
 
-  await fetchAllAlacaklilar();
+    const existing = findBorcluByIsim(borclu.isim);
+    if (existing && canUseSupabase()) {
+      await adjustBorcluInDb(existing.id, "borc_ekle", borclu.bakiye, null);
+      continue;
+    }
+
+    const row = {
+      isim: borclu.isim,
+      bakiye: borclu.bakiye,
+      hareketler: borclu.hareketler?.length ? borclu.hareketler : [createHareket("borc_al", borclu.bakiye, null)],
+      kayit_zamani: borclu.kayitZamani ?? new Date().toISOString(),
+    };
+
+    const { error } = await supabaseClient.from(BORCLU_TABLE_NAME).insert(row);
+    if (error && error.code !== "23505") throw error;
+  }
+
+  await fetchAllBorclular();
+  localStorage.removeItem(LEGACY_BORCLU_KEY);
   localStorage.removeItem(LEGACY_ALACAKLI_KEY);
 }
 
-async function saveAlacakliToDb(alacakli) {
-  const payload = {
-    isim: alacakli.isim.trim(),
-    miktar: alacakli.miktar,
-    tarih: alacakli.tarih || null,
-  };
-
-  if (canUseSupabase()) {
-    if (alacakli.id && !String(alacakli.id).startsWith("local-")) {
-      const { error } = await supabaseClient
-        .from(ALACAKLI_TABLE_NAME)
-        .update(payload)
-        .eq("id", alacakli.id);
-      if (error) throw error;
-    } else {
-      const { data, error } = await supabaseClient
-        .from(ALACAKLI_TABLE_NAME)
-        .insert(payload)
-        .select("id, isim, miktar, tarih, kayit_zamani")
-        .single();
-      if (error) throw error;
-      alacakli.id = data.id;
-      alacakli.kayitZamani = data.kayit_zamani;
-    }
-  } else {
-    if (!alacakli.id) alacakli.id = createLocalId();
-    alacakli.kayitZamani = new Date().toISOString();
-    const items = getAlacaklilarCache();
-    items.push(alacakli);
-    setAlacaklilarCache(items);
-    saveLegacyAlacaklilar(alacaklilarCache);
-    return alacakli;
+async function saveBorcluToDb(isim, miktar, tarih, tur = "borc_al") {
+  const cleanIsim = normalizeIsim(isim);
+  const amount = Number(miktar) || 0;
+  if (!cleanIsim || amount <= 0) {
+    throw new Error("Geçersiz borç kaydı");
   }
 
-  const items = getAlacaklilarCache();
-  const index = items.findIndex((item) => item.id === alacakli.id);
-  const saved = {
-    ...alacakli,
-    kayitZamani: alacakli.kayitZamani ?? new Date().toISOString(),
+  const existing = findBorcluByIsim(cleanIsim);
+  if (existing) {
+    return adjustBorcluInDb(existing.id, tur === "borc_al" ? "borc_ekle" : tur, amount, tarih);
+  }
+
+  const hareket = createHareket(tur, amount, tarih);
+  const borclu = {
+    isim: cleanIsim,
+    bakiye: amount,
+    hareketler: [hareket],
+    kayitZamani: new Date().toISOString(),
   };
-  if (index >= 0) items[index] = saved;
-  else items.push(saved);
-  setAlacaklilarCache(items);
-  return saved;
+
+  if (canUseSupabase()) {
+    const { data, error } = await supabaseClient
+      .from(BORCLU_TABLE_NAME)
+      .insert({
+        isim: borclu.isim,
+        bakiye: borclu.bakiye,
+        hareketler: borclu.hareketler,
+        kayit_zamani: borclu.kayitZamani,
+      })
+      .select("id, isim, bakiye, hareketler, kayit_zamani")
+      .single();
+    if (error) throw error;
+    borclu.id = data.id;
+    borclu.kayitZamani = data.kayit_zamani;
+    borclu.hareketler = data.hareketler ?? borclu.hareketler;
+    borclu.bakiye = Number(data.bakiye) || borclu.bakiye;
+  } else {
+    borclu.id = createLocalId();
+    const items = getBorclularCache();
+    items.push(borclu);
+    setBorclularCache(items);
+    saveLegacyBorclular(borclularCache);
+    return borclu;
+  }
+
+  const items = getBorclularCache();
+  items.push(rowToBorclu({ ...borclu, kayit_zamani: borclu.kayitZamani }));
+  setBorclularCache(items);
+  return borclu;
 }
 
-async function deleteAlacakliFromDb(id) {
+async function adjustBorcluInDb(id, tur, miktar, tarih) {
+  const amount = Number(miktar) || 0;
+  if (amount <= 0) throw new Error("Geçersiz tutar");
+
+  const borclu = getBorclularCache().find((item) => item.id === id);
+  if (!borclu) throw new Error("Borçlu bulunamadı");
+
+  if (tur === "odeme" && amount > borclu.bakiye) {
+    throw new Error("Ödeme tutarı borçtan fazla olamaz");
+  }
+
+  const hareket = createHareket(tur, amount, tarih);
+  const hareketler = [...(borclu.hareketler ?? []), hareket];
+  const bakiye = tur === "odeme" ? borclu.bakiye - amount : borclu.bakiye + amount;
+
   if (canUseSupabase()) {
-    const { error } = await supabaseClient.from(ALACAKLI_TABLE_NAME).delete().eq("id", id);
+    const { data, error } = await supabaseClient
+      .from(BORCLU_TABLE_NAME)
+      .update({ bakiye, hareketler })
+      .eq("id", id)
+      .select("id, isim, bakiye, hareketler, kayit_zamani")
+      .single();
+    if (error) throw error;
+
+    const updated = rowToBorclu(data);
+    const items = getBorclularCache();
+    const index = items.findIndex((item) => item.id === id);
+    if (index >= 0) items[index] = updated;
+    else items.push(updated);
+    setBorclularCache(items);
+    return updated;
+  }
+
+  borclu.bakiye = bakiye;
+  borclu.hareketler = hareketler;
+  setBorclularCache(getBorclularCache());
+  saveLegacyBorclular(borclularCache);
+  return borclu;
+}
+
+async function deleteBorcluFromDb(id) {
+  if (canUseSupabase()) {
+    const { error } = await supabaseClient.from(BORCLU_TABLE_NAME).delete().eq("id", id);
     if (error) throw error;
   } else {
-    setAlacaklilarCache(getAlacaklilarCache().filter((item) => item.id !== id));
-    saveLegacyAlacaklilar(alacaklilarCache);
+    setBorclularCache(getBorclularCache().filter((item) => item.id !== id));
+    saveLegacyBorclular(borclularCache);
     return;
   }
 
-  setAlacaklilarCache(getAlacaklilarCache().filter((item) => item.id !== id));
+  setBorclularCache(getBorclularCache().filter((item) => item.id !== id));
 }
 
 function createLocalId() {
@@ -257,13 +377,13 @@ function subscribeToChanges() {
     )
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: ALACAKLI_TABLE_NAME },
+      { event: "*", schema: "public", table: BORCLU_TABLE_NAME },
       async () => {
         try {
-          await fetchAllAlacaklilar();
-          window.dispatchEvent(new CustomEvent("alacaklilar-sync"));
+          await fetchAllBorclular();
+          window.dispatchEvent(new CustomEvent("borclular-sync"));
         } catch (error) {
-          console.error("Alacaklı senkron hatası:", error);
+          console.error("Borçlu senkron hatası:", error);
         }
       }
     )
@@ -274,7 +394,7 @@ async function initSupabaseDb() {
   if (!isSupabaseConfigured()) {
     const legacy = loadLegacyRecords();
     setRecordsCache(legacy);
-    setAlacaklilarCache(loadLegacyAlacaklilar());
+    setBorclularCache(loadLegacyBorclular());
     supabaseReady = false;
     return false;
   }
@@ -289,18 +409,18 @@ async function initSupabaseDb() {
   await fetchAllRecords();
 
   try {
-    await fetchAllAlacaklilar();
+    await fetchAllBorclular();
   } catch (error) {
-    console.error("Alacaklı kayıtları yüklenemedi:", error);
-    setAlacaklilarCache(loadLegacyAlacaklilar());
+    console.error("Borçlu kayıtları yüklenemedi:", error);
+    setBorclularCache(loadLegacyBorclular());
   }
 
   await migrateLegacyRecords();
 
   try {
-    await migrateLegacyAlacaklilar();
+    await migrateLegacyBorclular();
   } catch (error) {
-    console.error("Yerel alacaklı kayıtları taşınamadı:", error);
+    console.error("Yerel borçlu kayıtları taşınamadı:", error);
   }
 
   subscribeToChanges();
