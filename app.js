@@ -528,19 +528,26 @@ function loadGunKaydi(tarih) {
 function updateSyncStatus() {
   if (!els.syncStatus) return;
 
+  const textEl = els.syncStatus.querySelector(".sync-text");
+
+  const setText = (msg) => {
+    if (textEl) textEl.textContent = msg;
+    else els.syncStatus.textContent = msg;
+  };
+
   if (isSupabaseReady()) {
-    els.syncStatus.textContent = "Supabase — tüm cihazlar senkron";
+    setText("Supabase — tüm cihazlar senkron");
     els.syncStatus.className = "sync-status sync-status--cloud";
     return;
   }
 
   if (isSupabaseConfigured()) {
-    els.syncStatus.textContent = "Supabase bağlantısı kurulamadı";
+    setText("Supabase bağlantısı kurulamadı");
     els.syncStatus.className = "sync-status sync-status--error";
     return;
   }
 
-  els.syncStatus.textContent = "Yerel kayıt (supabase-config.js ayarlayın)";
+  setText("Yerel kayıt (supabase-config.js ayarlayın)");
   els.syncStatus.className = "sync-status sync-status--local";
 }
 

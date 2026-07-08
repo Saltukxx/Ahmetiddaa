@@ -6,19 +6,29 @@
   <meta name="theme-color" content="#0f1419" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Alacaklılar — İddaa Günlük Hesap</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <div class="app">
     <header class="header">
+      <p class="header-eyebrow">Bayi Muhasebe</p>
       <h1>Alacaklılar</h1>
       <p class="card-desc header-desc">Borçlu kişileri ve tutarlarını takip edin</p>
-      <p class="sync-status" id="sync-status">Yükleniyor…</p>
+      <p class="sync-status" id="sync-status"><span class="sync-dot"></span><span class="sync-text">Yükleniyor…</span></p>
     </header>
 
     <main class="main">
-      <section class="card">
-        <h2>Yeni Alacaklı</h2>
+      <section class="card card--accent card--form">
+        <div class="card-head">
+          <span class="card-icon card-icon--green" aria-hidden="true">+</span>
+          <div>
+            <h2>Yeni Alacaklı</h2>
+            <p class="card-desc">İsim, tutar ve isteğe bağlı tarih girin</p>
+          </div>
+        </div>
         <form id="alacakli-form" class="alacakli-form">
           <label class="alacakli-field">
             <span>Alacaklı İsmi</span>
@@ -36,7 +46,7 @@
         </form>
       </section>
 
-      <section class="card alacakli-summary-card">
+      <section class="card alacakli-summary-card card--highlight">
         <div class="subtotal alacakli-summary">
           <span>Toplam Alacak</span>
           <strong id="alacakli-toplam">0,00 ₺</strong>
@@ -53,8 +63,16 @@
     </main>
 
     <nav class="app-nav" aria-label="Ana menü">
-      <a class="app-nav__link" href="index.html">Günlük Hesap</a>
-      <a class="app-nav__link app-nav__link--active" href="alacaklilar.html" aria-current="page">Alacaklılar</a>
+      <div class="app-nav__inner">
+        <a class="app-nav__link" href="index.html">
+          <svg class="app-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span>Günlük Hesap</span>
+        </a>
+        <a class="app-nav__link app-nav__link--active" href="alacaklilar.html" aria-current="page">
+          <svg class="app-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Alacaklılar</span>
+        </a>
+      </div>
     </nav>
   </div>
 
