@@ -11,6 +11,7 @@ const els = {
   miktar: document.getElementById("borclu-miktar"),
   tarih: document.getElementById("borclu-tarih"),
   kaydetBtn: document.getElementById("borclu-kaydet-btn"),
+  formError: document.getElementById("borclu-form-error"),
   liste: document.getElementById("borclu-liste"),
   toplam: document.getElementById("borclu-toplam"),
   sayisi: document.getElementById("borclu-sayisi"),
@@ -44,11 +45,29 @@ function updateSyncStatus() {
 }
 
 function setSavingState(isSaving) {
+  if (!els.kaydetBtn) return;
   els.kaydetBtn.disabled = isSaving;
   els.kaydetBtn.textContent = isSaving ? "Kaydediliyor…" : "Borç Al / Kaydet";
 }
 
+function showFormError(message) {
+  if (!els.formError) {
+    if (message) alert(message);
+    return;
+  }
+
+  if (!message) {
+    els.formError.hidden = true;
+    els.formError.textContent = "";
+    return;
+  }
+
+  els.formError.hidden = false;
+  els.formError.textContent = message;
+}
+
 function bindAmountInput(input) {
+  if (!input) return;
   input.addEventListener("blur", () => {
     const val = parseAmount(input.value);
     if (val !== 0) input.value = formatInputAmount(val);
@@ -97,7 +116,7 @@ function renderAdjustPanel(borclu, type) {
       <p class="borclu-adjust__title">${escapeHtml(title)} — ${escapeHtml(borclu.isim)}</p>
       <label class="borclu-field">
         <span>Tutar (₺)</span>
-        <input type="text" class="borclu-adjust-miktar" inputmode="decimal" required placeholder="0" />
+        <input type="text" class="borclu-adjust-miktar" inputmode="decimal" placeholder="Örn. 500" />
       </label>
       <label class="borclu-field borclu-field--optional">
         <span>Tarih <em>(opsiyonel)</em></span>
@@ -239,45 +258,54 @@ function bindListeEvents() {
 }
 
 async function handleSubmit(event) {
-  event.preventDefault();
+  event?.preventDefault();
+  showFormError("");
 
-  const isim = els.isim.value.trim();
-  const miktar = parseAmount(els.miktar.value);
-  const tarih = els.tarih.value || null;
+  const isim = els.isim?.value.trim() ?? "";
+  const miktar = parseAmount(els.miktar?.value ?? "");
+  const tarih = els.tarih?.value || null;
 
   if (!isim) {
-    alert("Lütfen borçlu ismini girin.");
-    els.isim.focus();
+    showFormError("Lütfen borçlu ismini girin.");
+    els.isim?.focus();
     return;
   }
 
   if (miktar <= 0) {
-    alert("Lütfen geçerli bir borç tutarı girin.");
-    els.miktar.focus();
-    return;
-  }
-
-  const existing = findBorcluByIsim(isim);
-  if (existing && !confirm(`${existing.isim} zaten listede. ${formatAmount(miktar)} borç eklensin mi?`)) {
+    showFormError("Lütfen geçerli bir borç tutarı girin (ör. 1500 veya 1.500,50).");
+    els.miktar?.focus();
     return;
   }
 
   setSavingState(true);
   try {
+    let existing = findBorcluByIsim(isim);
+    if (existing && !confirm(`${existing.isim} zaten listede. ${formatAmount(miktar)} borç eklensin mi?`)) {
+      return;
+    }
+
+    existing = findBorcluByIsim(isim);
     await saveBorcluToDb(isim, miktar, tarih, existing ? "borc_ekle" : "borc_al");
-    els.form.reset();
+    els.form?.reset();
+    showFormError("");
     renderListe();
   } catch (error) {
     console.error(error);
-    alert(error.message || "Kayıt eklenemedi. İnternet bağlantınızı kontrol edin.");
+    showFormError(error.message || "Kayıt eklenemedi. İnternet bağlantınızı kontrol edin.");
   } finally {
     setSavingState(false);
   }
 }
 
 function init() {
+  if (!els.form || !els.kaydetBtn) {
+    console.error("Borçlular formu bulunamadı.");
+    return;
+  }
+
   bindAmountInput(els.miktar);
   els.form.addEventListener("submit", handleSubmit);
+  els.kaydetBtn.addEventListener("click", handleSubmit);
 }
 
 async function bootstrap() {
@@ -299,4 +327,8 @@ async function bootstrap() {
   renderListe();
 }
 
-bootstrap();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootstrap);
+} else {
+  bootstrap();
+}

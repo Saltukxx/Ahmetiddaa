@@ -229,6 +229,15 @@ async function saveBorcluToDb(isim, miktar, tarih, tur = "borc_al") {
       })
       .select("id, isim, bakiye, hareketler, kayit_zamani")
       .single();
+
+    if (error?.code === "23505") {
+      await fetchAllBorclular();
+      const duplicate = findBorcluByIsim(cleanIsim);
+      if (duplicate) {
+        return adjustBorcluInDb(duplicate.id, "borc_ekle", amount, tarih);
+      }
+    }
+
     if (error) throw error;
     borclu.id = data.id;
     borclu.kayitZamani = data.kayit_zamani;

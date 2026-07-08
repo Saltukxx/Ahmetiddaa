@@ -162,6 +162,21 @@ body {
   gap: 0.875rem;
 }
 
+.form-error {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.form-error[hidden] {
+  display: none;
+}
+
 .alacakli-field,
 .borclu-field {
   display: flex;

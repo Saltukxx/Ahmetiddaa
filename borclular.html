@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="styles.css?v=8" />
 </head>
 <body class="page-borclular">
   <div class="app">
@@ -32,17 +32,18 @@
         <form id="borclu-form" class="borclu-form">
           <label class="borclu-field">
             <span>Borçlu İsmi</span>
-            <input type="text" id="borclu-isim" required placeholder="Ad soyad veya müşteri adı" autocomplete="name" />
+            <input type="text" id="borclu-isim" placeholder="Ad soyad veya müşteri adı" autocomplete="name" />
           </label>
           <label class="borclu-field">
             <span>Borç Tutarı (₺)</span>
-            <input type="text" id="borclu-miktar" inputmode="decimal" required placeholder="0" />
+            <input type="text" id="borclu-miktar" inputmode="decimal" placeholder="Örn. 1500 veya 1.500,50" />
           </label>
           <label class="borclu-field borclu-field--optional">
             <span>Tarih <em>(opsiyonel)</em></span>
             <input type="date" id="borclu-tarih" />
           </label>
-          <button type="submit" class="btn btn-primary" id="borclu-kaydet-btn">Borç Al / Kaydet</button>
+          <p class="form-error" id="borclu-form-error" hidden></p>
+          <button type="button" class="btn btn-primary" id="borclu-kaydet-btn">Borç Al / Kaydet</button>
         </form>
       </section>
 
@@ -77,9 +78,9 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js"></script>
-  <script src="utils.js"></script>
-  <script src="supabase-db.js"></script>
-  <script src="borclular.js"></script>
+  <script src="supabase-config.js?v=7"></script>
+  <script src="utils.js?v=7"></script>
+  <script src="supabase-db.js?v=7"></script>
+  <script src="borclular.js?v=7"></script>
 </body>
 </html>
