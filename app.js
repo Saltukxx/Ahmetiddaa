@@ -102,8 +102,11 @@ function setTabloValues(containerId, fields, values) {
   const container = document.getElementById(containerId);
   for (const field of fields) {
     const input = container.querySelector(`[data-field="${field}"]`);
-    if (input && values[field] !== undefined) {
+    if (!input) continue;
+    if (values[field] !== undefined) {
       input.value = formatInputAmount(values[field]);
+    } else {
+      input.value = "";
     }
   }
 }
@@ -636,8 +639,6 @@ function temizle() {
   if (!confirm("Tüm alanlar temizlensin mi?")) return;
 
   clearKaziInputs();
-  setOncekiGunStok(els.tarih.value, true);
-
   setTabloValues("tablo1", tablo1Fields.filter((f) => f !== "kazi-kazan"), {});
   setTabloValues("tablo2", tablo2Fields, {});
   els.kaziKazanTablo1.value = "";
