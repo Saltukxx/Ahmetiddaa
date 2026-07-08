@@ -35,6 +35,7 @@
   --app-padding-x: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
   --touch-min: 44px;
   --bottom-nav-height: 4.75rem;
+  --sticky-actions-height: 4.5rem;
 }
 
 html {
@@ -58,9 +59,25 @@ body {
 
 .app {
   max-width: 720px;
+  width: 100%;
   margin: 0 auto;
   padding: max(1rem, env(safe-area-inset-top)) var(--app-padding-x)
-    calc(var(--bottom-nav-height) + max(1rem, env(safe-area-inset-bottom)));
+    calc(var(--bottom-nav-height) + max(1.25rem, env(safe-area-inset-bottom)));
+  min-width: 0;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.card,
+.header,
+.result-card {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .app-nav {
@@ -355,12 +372,6 @@ body {
 
 .sync-status--error .sync-dot {
   background: var(--danger);
-}
-
-.main {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
 }
 
 .card {
@@ -1024,33 +1035,119 @@ body {
   margin-left: 0.25rem;
 }
 
-/* Tablet and below */
+/* Tablet & mobil */
 .kazi-extras--single {
   grid-template-columns: 1fr;
   max-width: 100%;
 }
 
-@media (max-width: 640px) {
-  .app {
-    padding-bottom: calc(var(--bottom-nav-height) + 5.5rem + env(safe-area-inset-bottom));
+@media (max-width: 768px) {
+  :root {
+    --bottom-nav-height: 5rem;
   }
 
   .header {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
+    padding: 1rem 0.875rem 0.875rem;
+  }
+
+  .header h1 {
+    font-size: clamp(1.2rem, 5vw, 1.45rem);
+    word-break: break-word;
+  }
+
+  .header-eyebrow {
+    font-size: 0.625rem;
+  }
+
+  .header-desc {
+    font-size: 0.8125rem;
+    padding: 0 0.25rem;
   }
 
   .date-row {
     display: flex;
     width: 100%;
+    max-width: 100%;
     justify-content: space-between;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .date-row input[type="date"] {
+    width: 100%;
+    min-width: 0;
+    text-align: right;
+  }
+
+  .sync-status {
+    max-width: 100%;
+    font-size: 0.6875rem;
+    padding: 0.375rem 0.625rem;
+    line-height: 1.35;
   }
 
   .main {
-    gap: 1rem;
+    gap: 0.875rem;
+  }
+
+  .card {
+    padding: 0.875rem;
+    border-radius: 12px;
+  }
+
+  .card-head {
+    gap: 0.625rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-icon {
+    width: 2.125rem;
+    height: 2.125rem;
+    font-size: 0.8125rem;
+    border-radius: 8px;
+  }
+
+  .card h2 {
+    font-size: 1rem;
+  }
+
+  .card-desc {
+    font-size: 0.8125rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .card-head .card-desc {
+    margin-bottom: 0;
+  }
+
+  .table-grid label {
+    grid-template-columns: 1fr;
+    gap: 0.375rem;
+  }
+
+  .table-grid input {
+    text-align: left;
+    width: 100%;
+  }
+
+  .kazi-stok,
+  .kazi-extras {
+    grid-template-columns: 1fr;
+  }
+
+  .subtotal {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+  }
+
+  .subtotal strong {
+    margin-left: auto;
+    text-align: right;
   }
 
   .kazi-satis strong {
-    font-size: clamp(1.1rem, 4.5vw, 1.25rem);
+    font-size: clamp(1.05rem, 4.5vw, 1.2rem);
   }
 
   .kazi-formula-note,
@@ -1058,6 +1155,24 @@ body {
   .kazi-stok-note {
     text-align: left;
     line-height: 1.45;
+    font-size: 0.75rem;
+  }
+
+  .result-card {
+    padding: 1.125rem 0.875rem;
+  }
+
+  .result-amount {
+    font-size: clamp(1.5rem, 7vw, 2rem);
+  }
+
+  .result-formula {
+    font-size: 0.75rem;
+    padding: 0 0.25rem;
+  }
+
+  .result-header {
+    gap: 0.375rem;
   }
 
   .actions {
@@ -1065,10 +1180,54 @@ body {
     bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
     z-index: 10;
     margin: 0 calc(-1 * var(--app-padding-x));
-    padding: 0.75rem var(--app-padding-x) max(0.75rem, env(safe-area-inset-bottom));
-    background: linear-gradient(to top, var(--bg) 70%, transparent);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    padding: 0.75rem var(--app-padding-x);
+    background: linear-gradient(to top, var(--bg) 75%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .page-hesap .app {
+    padding-bottom: calc(
+      var(--bottom-nav-height) + var(--sticky-actions-height) + max(1rem, env(safe-area-inset-bottom))
+    );
+  }
+
+  .page-alacaklilar .app {
+    padding-bottom: calc(var(--bottom-nav-height) + max(1.25rem, env(safe-area-inset-bottom)));
+  }
+
+  .alacakli-form .btn-primary {
+    width: 100%;
+    margin-top: 0.25rem;
+  }
+
+  .alacakli-summary-card {
+    padding: 0.875rem;
+  }
+
+  .alacakli-item {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    padding: 0.875rem;
+  }
+
+  .alacakli-item__main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .alacakli-item__miktar {
+    grid-column: 1;
+    grid-row: 2;
+    text-align: left;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .alacakli-item .sil-btn {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
   }
 
   .history-item {
@@ -1081,6 +1240,7 @@ body {
   .history-item .tarih {
     grid-column: 1;
     grid-row: 1;
+    word-break: break-word;
   }
 
   .history-item .fark {
@@ -1096,15 +1256,42 @@ body {
     justify-self: end;
   }
 
+  .app-nav__inner {
+    border-radius: 14px;
+    padding: 0.3125rem;
+  }
+
+  .app-nav__link {
+    min-height: 3.375rem;
+    font-size: 0.625rem;
+    padding: 0.3125rem 0.25rem;
+    gap: 0.15rem;
+  }
+
+  .app-nav__icon {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .app-nav__link span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 0.125rem;
+  }
+
   /* Kazı-Kazan tablosu: kart görünümü */
   .kazi-table-wrap {
     overflow-x: visible;
     margin: 0;
     padding: 0;
+    max-width: 100%;
   }
 
   .kazi-table {
     display: block;
+    width: 100%;
   }
 
   .kazi-table thead {
@@ -1117,25 +1304,16 @@ body {
     gap: 0.5rem;
   }
 
-  .kazi-table tbody tr {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem 0.75rem;
-    padding: 0.75rem;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-  }
-
+  .kazi-table tbody tr,
   #karisik-rows tr,
   #kazi-rows tr {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.5rem 0.75rem;
+    gap: 0.5rem 0.625rem;
     padding: 0.75rem;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
   }
 
   .kazi-table tbody td {
@@ -1145,6 +1323,7 @@ body {
     padding: 0;
     border: none;
     text-align: left;
+    min-width: 0;
   }
 
   .kazi-table tbody td::before {
@@ -1156,7 +1335,25 @@ body {
     color: var(--text-muted);
   }
 
-  .kazi-table tbody td[data-label="Toplam"] {
+  .kazi-table tbody .kazi-label,
+  .kazi-table tbody td[data-label="Fiyat"] {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.375rem;
+    margin-bottom: 0.125rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .kazi-table tbody .kazi-label::before,
+  .kazi-table tbody td[data-label="Fiyat"]::before {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+  }
+
+  .kazi-table tbody td[data-label="Toplam"],
+  .kazi-table tbody .kazi-satir-toplam-cell {
     grid-column: 1 / -1;
     flex-direction: row;
     justify-content: space-between;
@@ -1166,7 +1363,8 @@ body {
     border-top: 1px solid var(--border);
   }
 
-  .kazi-table tbody td[data-label="Toplam"]::before {
+  .kazi-table tbody td[data-label="Toplam"]::before,
+  .kazi-table tbody .kazi-satir-toplam-cell::before {
     font-size: 0.8125rem;
     text-transform: none;
     letter-spacing: normal;
@@ -1174,29 +1372,37 @@ body {
 
   .kazi-table tbody .kazi-label {
     font-size: 1rem;
-    padding: 0.625rem 0;
+    font-weight: 700;
+    padding: 0.375rem 0 0.625rem;
   }
 
   .kazi-table tbody .kazi-satir-toplam-cell {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .kazi-table input.kazi-adet,
+  .kazi-table input.karisik-adet,
+  .kazi-manuel-fiyat {
+    width: 100%;
+    min-width: 0;
   }
 
   .kazi-table tfoot {
     display: block;
-    margin-top: 0.75rem;
+    margin-top: 0.625rem;
   }
 
   .kazi-table tfoot tr {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
     padding: 0.875rem 0.75rem;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     font-weight: 700;
     color: var(--warning);
   }
@@ -1207,69 +1413,93 @@ body {
     border: none;
     text-align: right;
     font-variant-numeric: tabular-nums;
+    word-break: break-word;
   }
 
   .kazi-table tfoot td:first-child {
     text-align: left;
-    flex: 1;
+    flex: 1 1 8rem;
+    min-width: 0;
+  }
+
+  .kazi-satir-ekle {
+    margin-top: 0.625rem;
   }
 }
 
-/* Small phones */
 @media (max-width: 480px) {
-  .kazi-extras,
-  .kazi-stok {
-    grid-template-columns: 1fr;
-  }
-
-  .alacakli-item {
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-  }
-
-  .alacakli-item__miktar {
-    grid-column: 1;
-    grid-row: 2;
-    font-size: 0.875rem;
-  }
-
-  .alacakli-item .sil-btn {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
-  }
-
-  .table-grid label {
-    grid-template-columns: 1fr;
-    gap: 0.375rem;
-  }
-
-  .table-grid input {
-    text-align: left;
+  .app {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
   }
 
   .subtotal {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.25rem;
   }
 
   .subtotal strong {
+    margin-left: 0;
     text-align: left;
+    font-size: 1.0625rem;
   }
 
   .result-header {
     flex-direction: column;
   }
+
+  .btn {
+    font-size: 0.875rem;
+    padding: 0.6875rem 0.875rem;
+  }
+
+  .empty-state {
+    padding: 1.25rem 0.75rem;
+    font-size: 0.8125rem;
+  }
 }
 
-/* Very small screens */
 @media (max-width: 360px) {
-  .kazi-table tbody tr {
+  :root {
+    --app-padding-x: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  }
+
+  .kazi-table tbody tr,
+  #karisik-rows tr,
+  #kazi-rows tr {
     grid-template-columns: 1fr;
   }
 
-  .kazi-table tbody td[data-label="Toplam"] {
+  .kazi-table tbody td[data-label="Adet"] {
     grid-column: 1;
+  }
+
+  .app-nav__link span:last-child {
+    font-size: 0.5625rem;
+  }
+
+  .card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .card-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+/* Yatay taşmayı önle */
+input,
+textarea,
+select,
+button {
+  max-width: 100%;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .date-row input[type="date"],
+  .alacakli-field input[type="date"] {
+    min-height: var(--touch-min);
+    line-height: var(--touch-min);
   }
 }
