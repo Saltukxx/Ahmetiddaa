@@ -88,6 +88,24 @@ body {
   flex: 1;
 }
 
+.sync-status {
+  margin-top: 0.625rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sync-status--cloud {
+  color: var(--success);
+}
+
+.sync-status--local {
+  color: var(--warning);
+}
+
+.sync-status--error {
+  color: var(--danger);
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -378,7 +396,8 @@ body {
   margin-top: 0.75rem;
 }
 
-.kazi-table input.kazi-adet {
+.kazi-table input.kazi-adet,
+.kazi-table input.karisik-adet {
   width: 100%;
   min-width: 3.5rem;
   min-height: var(--touch-min);
@@ -392,7 +411,8 @@ body {
   text-align: center;
 }
 
-.kazi-table input.kazi-adet:focus {
+.kazi-table input.kazi-adet:focus,
+.kazi-table input.karisik-adet:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
@@ -556,6 +576,11 @@ body {
   background: var(--accent-hover);
 }
 
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-secondary {
   background: var(--surface-2);
   color: var(--text);
@@ -659,6 +684,11 @@ body {
 }
 
 /* Tablet and below */
+.kazi-extras--single {
+  grid-template-columns: 1fr;
+  max-width: 100%;
+}
+
 @media (max-width: 640px) {
   .app {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
@@ -747,6 +777,17 @@ body {
   }
 
   .kazi-table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem 0.75rem;
+    padding: 0.75rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  #karisik-rows tr,
+  #kazi-rows tr {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem 0.75rem;

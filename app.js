@@ -1,5 +1,3 @@
-const STORAGE_KEY = "iddaa-gunluk-hesap";
-
 const tablo1Fields = ["makine1", "makine2", "iddaa", "kazi-kazan", "mehmet-bey"];
 const tablo2Fields = ["defter", "nakit", "makine1", "makine2", "iddaa"];
 
@@ -14,7 +12,9 @@ const kaziKazanGruplari = [
 ];
 
 const kaziStokFields = ["onceki-gun", "teslimat"];
-const kaziExtraFields = ["karisik", "cam"];
+const kaziExtraFields = ["cam"];
+
+const karisikFiyatlari = [10000, 12000, 15000, 18000, 20000];
 
 let manuelSatirlar = [];
 let fixedRowCount = 0;
@@ -22,6 +22,8 @@ let fixedRowCount = 0;
 const els = {
   tarih: document.getElementById("hesap-tarihi"),
   kaziRows: document.getElementById("kazi-rows"),
+  karisikRows: document.getElementById("karisik-rows"),
+  karisikToplam: document.getElementById("karisik-toplam"),
   kaziBiletToplam: document.getElementById("kazi-bilet-toplam"),
   kaziSayim: document.getElementById("kazi-sayim"),
   kaziToplamStok: document.getElementById("kazi-toplam-stok"),
@@ -40,6 +42,7 @@ const els = {
   gecmisListe: document.getElementById("gecmis-liste"),
   kaziSatirEkleBtn: document.getElementById("kazi-satir-ekle"),
   gunNotu: document.getElementById("gun-notu"),
+  syncStatus: document.getElementById("sync-status"),
 };
 
 function parseAmount(value) {
@@ -107,6 +110,45 @@ function setTabloValues(containerId, fields, values) {
 
 function createManuelId() {
   return `m-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function formatFiyatLabel(amount) {
+  return new Intl.NumberFormat("tr-TR").format(amount) + " ₺";
+}
+
+function buildKarisikRows() {
+  const html = karisikFiyatlari
+    .map(
+      (fiyat, idx) => `
+        <tr data-row-type="karisik" data-mult="${fiyat}" data-row="${idx}">
+          <td class="kazi-label" data-label="Fiyat">${formatFiyatLabel(fiyat)}</td>
+          <td data-label="Adet"><input type="text" inputmode="numeric" class="karisik-adet" data-row="${idx}" placeholder="0" /></td>
+          <td class="kazi-satir-toplam" data-label="Toplam" data-karisik-row-total="${idx}">0,00 ₺</td>
+        </tr>`
+    )
+    .join("");
+
+  els.karisikRows.innerHTML = html;
+  bindKarisikRowInputs();
+}
+
+function getKarisikAdetler() {
+  const adetler = [];
+  els.karisikRows.querySelectorAll("tr").forEach((row) => {
+    adetler.push({
+      mult: Number(row.dataset.mult),
+      adet: parseAdet(row.querySelector(".karisik-adet")?.value ?? ""),
+    });
+  });
+  return adetler;
+}
+
+function bindKarisikRowInputs() {
+  els.karisikRows.querySelectorAll(".karisik-adet").forEach((input) => {
+    if (input.dataset.bound === "true") return;
+    input.dataset.bound = "true";
+    bindAdetInput(input);
+  });
 }
 
 function buildFixedKaziRows() {
@@ -236,9 +278,10 @@ function getKaziValues() {
     extras[field] = parseAmount(input?.value ?? "");
   }
 
+  const karisikAdetler = getKarisikAdetler();
   const stok = getKaziStokValues();
 
-  return { adetler, manuelSatirlar: [...manuelSatirlar], extras, stok };
+  return { adetler, manuelSatirlar: [...manuelSatirlar], karisikAdetler, extras, stok };
 }
 
 function getPreviousDate(dateStr) {
@@ -249,7 +292,7 @@ function getPreviousDate(dateStr) {
 
 function getOncekiGunStokFromRecords(tarih) {
   const prevDate = getPreviousDate(tarih);
-  const records = loadGecmis();
+  const records = getRecordsCache();
   const prev = records.find((r) => r.tarih === prevDate);
   if (!prev?.kaziKazan) return 0;
 
@@ -269,8 +312,9 @@ function setOncekiGunStok(tarih, force = false) {
 }
 
 function hesaplaKaziKazan() {
-  const { adetler, extras, stok } = getKaziValues();
+  const { adetler, karisikAdetler, extras, stok } = getKaziValues();
   let biletToplam = 0;
+  let karisikToplam = 0;
 
   adetler.forEach((row, idx) => {
     const satirToplam = row.adet * row.mult;
@@ -280,7 +324,16 @@ function hesaplaKaziKazan() {
     if (cell) cell.textContent = formatAmount(satirToplam);
   });
 
-  const extraToplam = sumValues(extras);
+  karisikAdetler.forEach((row, idx) => {
+    const satirToplam = row.adet * row.mult;
+    karisikToplam += satirToplam;
+
+    const cell = els.karisikRows.querySelector(`[data-karisik-row-total="${idx}"]`);
+    if (cell) cell.textContent = formatAmount(satirToplam);
+  });
+
+  const camToplam = extras.cam ?? 0;
+  const extraToplam = karisikToplam + camToplam;
   const bugunSayim = biletToplam + extraToplam;
   const teslimat = stok.teslimat;
   const oncekiGun = stok["onceki-gun"];
@@ -288,9 +341,13 @@ function hesaplaKaziKazan() {
   const gunlukSatis = toplamStok - bugunSayim;
   const bugunElimde = bugunSayim;
 
-  const hasSayim = bugunSayim > 0 || adetler.some((r) => r.adet > 0);
+  const hasSayim =
+    bugunSayim > 0 ||
+    adetler.some((r) => r.adet > 0) ||
+    karisikAdetler.some((r) => r.adet > 0);
   const hasStokInput = oncekiGun > 0 || teslimat > 0 || hasSayim;
 
+  els.karisikToplam.textContent = formatAmount(karisikToplam);
   els.kaziBiletToplam.textContent = formatAmount(biletToplam);
   els.kaziSayim.textContent = formatAmount(bugunSayim);
   els.kaziToplamStok.textContent = formatAmount(toplamStok);
@@ -303,9 +360,12 @@ function hesaplaKaziKazan() {
   return {
     adetler,
     manuelSatirlar: [...manuelSatirlar],
+    karisikAdetler,
     extras,
     stok,
     biletToplam,
+    karisikToplam,
+    camToplam,
     extraToplam,
     bugunSayim,
     teslimat,
@@ -383,6 +443,17 @@ function setKaziValues(kaziData) {
 
   renderManuelSatirlar();
 
+  if (kaziData.karisikAdetler) {
+    const rows = els.karisikRows.querySelectorAll("tr");
+    kaziData.karisikAdetler.forEach((row, idx) => {
+      const tr = rows[idx];
+      if (!tr) return;
+      const input = tr.querySelector(".karisik-adet");
+      const adet = row.adet ?? 0;
+      if (input) input.value = adet ? String(adet) : "";
+    });
+  }
+
   if (kaziData.extras) {
     for (const field of kaziExtraFields) {
       const input = document.querySelector(`[data-kazi="${field}"]`);
@@ -406,6 +477,9 @@ function clearKaziInputs() {
   els.kaziRows.querySelectorAll('[data-row-type="fixed"] .kazi-adet').forEach((input) => {
     input.value = "";
   });
+  els.karisikRows.querySelectorAll(".karisik-adet").forEach((input) => {
+    input.value = "";
+  });
   manuelSatirlar = [];
   renderManuelSatirlar();
   for (const field of [...kaziExtraFields, ...kaziStokFields]) {
@@ -423,7 +497,7 @@ function setGunNotu(not) {
 }
 
 function loadGunKaydi(tarih) {
-  const records = loadGecmis();
+  const records = getRecordsCache();
   const kayit = records.find((r) => r.tarih === tarih);
 
   if (kayit) {
@@ -448,21 +522,32 @@ function loadGunKaydi(tarih) {
   hesapla();
 }
 
-function loadGecmis() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
+function updateSyncStatus() {
+  if (!els.syncStatus) return;
+
+  if (isFirebaseReady()) {
+    els.syncStatus.textContent = "Firebase — bulut senkron";
+    els.syncStatus.className = "sync-status sync-status--cloud";
+    return;
   }
+
+  if (isFirebaseConfigured()) {
+    els.syncStatus.textContent = "Firebase bağlantısı kurulamadı";
+    els.syncStatus.className = "sync-status sync-status--error";
+    return;
+  }
+
+  els.syncStatus.textContent = "Yerel kayıt (firebase-config.js ayarlayın)";
+  els.syncStatus.className = "sync-status sync-status--local";
 }
 
-function saveGecmis(list) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function setSavingState(isSaving) {
+  els.kaydetBtn.disabled = isSaving;
+  els.kaydetBtn.textContent = isSaving ? "Kaydediliyor…" : "Kaydet";
 }
 
 function renderGecmis() {
-  const list = loadGecmis();
+  const list = getRecordsCache();
   if (list.length === 0) {
     els.gecmisListe.innerHTML = '<p class="empty-state">Henüz kayıt yok.</p>';
     return;
@@ -474,7 +559,7 @@ function renderGecmis() {
     .map(
       (item, idx) => `
       <div class="history-item" data-index="${list.length - 1 - idx}">
-        <span class="tarih">${item.tarih}${item.not ? ' <span class="not-badge" title="Not var">📝</span>' : ""}</span>
+        <span class="tarih" data-tarih="${item.tarih}">${item.tarih}${item.not ? ' <span class="not-badge" title="Not var">📝</span>' : ""}</span>
         <span class="fark ${item.fark >= 0 ? "fazla" : "acik"}">
           ${item.fark >= 0 ? "Fazla" : "Açık"} ${formatAmount(Math.abs(item.fark))}
         </span>
@@ -484,18 +569,30 @@ function renderGecmis() {
     .join("");
 
   els.gecmisListe.querySelectorAll(".sil-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const item = btn.closest(".history-item");
-      const index = Number(item.dataset.index);
-      const records = loadGecmis();
-      records.splice(index, 1);
-      saveGecmis(records);
-      renderGecmis();
+      const tarih = item.querySelector(".tarih")?.dataset.tarih;
+      if (!tarih) return;
+      if (!confirm(`${tarih} tarihli kayıt silinsin mi?`)) return;
+
+      btn.disabled = true;
+      try {
+        await deleteRecordFromDb(tarih);
+        if (els.tarih.value === tarih) {
+          loadGunKaydi(tarih);
+        }
+        renderGecmis();
+      } catch (error) {
+        console.error(error);
+        alert("Kayıt silinemedi. İnternet bağlantınızı kontrol edin.");
+      } finally {
+        btn.disabled = false;
+      }
     });
   });
 }
 
-function kaydet() {
+async function kaydet() {
   const kazi = hesaplaKaziKazan();
   const { t1, t2, toplam1, toplam2, fark } = hesapla();
   const tarih = els.tarih.value;
@@ -504,7 +601,7 @@ function kaydet() {
     return;
   }
 
-  const records = loadGecmis();
+  const records = getRecordsCache();
   const existingIndex = records.findIndex((r) => r.tarih === tarih);
 
   const kayit = {
@@ -521,13 +618,18 @@ function kaydet() {
 
   if (existingIndex >= 0) {
     if (!confirm(`${tarih} tarihli kayıt zaten var. Üzerine yazılsın mı?`)) return;
-    records[existingIndex] = kayit;
-  } else {
-    records.push(kayit);
   }
 
-  saveGecmis(records);
-  renderGecmis();
+  setSavingState(true);
+  try {
+    await saveRecordToDb(kayit);
+    renderGecmis();
+  } catch (error) {
+    console.error(error);
+    alert("Kayıt yapılamadı. İnternet bağlantınızı kontrol edin.");
+  } finally {
+    setSavingState(false);
+  }
 }
 
 function temizle() {
@@ -585,6 +687,7 @@ function bindKaziRowInputs() {
 }
 
 function init() {
+  buildKarisikRows();
   buildKaziRows();
 
   const today = new Date();
@@ -595,14 +698,28 @@ function init() {
 
   els.kaziSatirEkleBtn.addEventListener("click", addManuelSatir);
   els.temizleBtn.addEventListener("click", temizle);
-  els.kaydetBtn.addEventListener("click", kaydet);
+  els.kaydetBtn.addEventListener("click", () => {
+    kaydet();
+  });
 
   els.tarih.addEventListener("change", () => {
     loadGunKaydi(els.tarih.value);
   });
+}
 
+async function bootstrap() {
+  init();
+
+  try {
+    await initFirebaseDb();
+  } catch (error) {
+    console.error(error);
+    setRecordsCache(loadLegacyRecords());
+  }
+
+  updateSyncStatus();
   loadGunKaydi(els.tarih.value);
   renderGecmis();
 }
 
-init();
+bootstrap();

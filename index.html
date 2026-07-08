@@ -16,6 +16,7 @@
         <label for="hesap-tarihi">Tarih</label>
         <input type="date" id="hesap-tarihi" />
       </div>
+      <p class="sync-status" id="sync-status">Yükleniyor…</p>
     </header>
 
     <main class="main">
@@ -29,12 +30,32 @@
         </div>
         <p class="kazi-stok-note">Önceki gün stok otomatik gelir. Yeni teslimat bu tutarın üzerine eklenir.</p>
 
-        <h3 class="kazi-subtitle">Bugün Elimde — Bilet Sayımı</h3>
+        <h3 class="kazi-subtitle">Karışık Sayımı</h3>
 
-        <div class="kazi-extras">
-          <label>Karışık<input type="text" inputmode="decimal" data-kazi="karisik" placeholder="0" /></label>
+        <div class="kazi-table-wrap">
+          <table class="kazi-table">
+            <thead>
+              <tr>
+                <th>Fiyat</th>
+                <th>Adet</th>
+                <th>Toplam</th>
+              </tr>
+            </thead>
+            <tbody id="karisik-rows"></tbody>
+            <tfoot>
+              <tr class="kazi-col-totals">
+                <td colspan="2">Karışık Toplamı</td>
+                <td id="karisik-toplam">0,00 ₺</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="kazi-extras kazi-extras--single">
           <label>Cam<input type="text" inputmode="decimal" data-kazi="cam" placeholder="0" /></label>
         </div>
+
+        <h3 class="kazi-subtitle">Bilet Sayımı</h3>
 
         <div class="kazi-table-wrap">
           <table class="kazi-table">
@@ -142,6 +163,10 @@
     </main>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="firebase-db.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
