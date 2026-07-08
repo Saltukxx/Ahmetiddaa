@@ -48,6 +48,12 @@ kayitlar
   kayit          → jsonb (günlük kayıt)
   kayit_zamani   → kayıt zamanı
   updated_at     → son güncelleme
+
+alacaklilar
+  id             → uuid
+  isim           → alacaklı adı
+  miktar         → tutar (₺)
+  tarih          → opsiyonel tarih
 ```
 
 ### Alternatif: Firebase Hosting

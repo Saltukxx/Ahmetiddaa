@@ -1,8 +1,11 @@
 const TABLE_NAME = "kayitlar";
+const ALACAKLI_TABLE_NAME = "alacaklilar";
 const LEGACY_STORAGE_KEY = "iddaa-gunluk-hesap";
+const LEGACY_ALACAKLI_KEY = "iddaa-alacaklilar";
 
 let supabaseClient = null;
 let recordsCache = [];
+let alacaklilarCache = [];
 let supabaseReady = false;
 let realtimeChannel = null;
 
@@ -33,6 +36,122 @@ function getRecordsCache() {
 
 function isSupabaseReady() {
   return supabaseReady;
+}
+
+function getAlacaklilarCache() {
+  return alacaklilarCache;
+}
+
+function setAlacaklilarCache(items) {
+  alacaklilarCache = items.slice().sort((a, b) => {
+    const nameCompare = a.isim.localeCompare(b.isim, "tr");
+    if (nameCompare !== 0) return nameCompare;
+    return (b.tarih ?? "").localeCompare(a.tarih ?? "");
+  });
+}
+
+function rowToAlacakli(row) {
+  return {
+    id: row.id,
+    isim: row.isim,
+    miktar: Number(row.miktar) || 0,
+    tarih: row.tarih ?? null,
+    kayitZamani: row.kayit_zamani ?? new Date().toISOString(),
+  };
+}
+
+function loadLegacyAlacaklilar() {
+  try {
+    const raw = localStorage.getItem(LEGACY_ALACAKLI_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLegacyAlacaklilar(items) {
+  localStorage.setItem(LEGACY_ALACAKLI_KEY, JSON.stringify(items));
+}
+
+async function fetchAllAlacaklilar() {
+  if (!supabaseClient) {
+    const legacy = loadLegacyAlacaklilar();
+    setAlacaklilarCache(legacy);
+    return alacaklilarCache;
+  }
+
+  const { data, error } = await supabaseClient
+    .from(ALACAKLI_TABLE_NAME)
+    .select("id, isim, miktar, tarih, kayit_zamani")
+    .order("isim", { ascending: true });
+
+  if (error) throw error;
+
+  setAlacaklilarCache((data ?? []).map(rowToAlacakli));
+  return alacaklilarCache;
+}
+
+async function saveAlacakliToDb(alacakli) {
+  const payload = {
+    isim: alacakli.isim.trim(),
+    miktar: alacakli.miktar,
+    tarih: alacakli.tarih || null,
+  };
+
+  if (supabaseReady && supabaseClient) {
+    if (alacakli.id && !String(alacakli.id).startsWith("local-")) {
+      const { error } = await supabaseClient
+        .from(ALACAKLI_TABLE_NAME)
+        .update(payload)
+        .eq("id", alacakli.id);
+      if (error) throw error;
+    } else {
+      const { data, error } = await supabaseClient
+        .from(ALACAKLI_TABLE_NAME)
+        .insert(payload)
+        .select("id, isim, miktar, tarih, kayit_zamani")
+        .single();
+      if (error) throw error;
+      alacakli.id = data.id;
+      alacakli.kayitZamani = data.kayit_zamani;
+    }
+  } else {
+    if (!alacakli.id) alacakli.id = createLocalId();
+    alacakli.kayitZamani = new Date().toISOString();
+    const items = getAlacaklilarCache();
+    items.push(alacakli);
+    setAlacaklilarCache(items);
+    saveLegacyAlacaklilar(alacaklilarCache);
+    return alacakli;
+  }
+
+  const items = getAlacaklilarCache();
+  const index = items.findIndex((item) => item.id === alacakli.id);
+  const saved = {
+    ...alacakli,
+    kayitZamani: alacakli.kayitZamani ?? new Date().toISOString(),
+  };
+  if (index >= 0) items[index] = saved;
+  else items.push(saved);
+  setAlacaklilarCache(items);
+  return saved;
+}
+
+async function deleteAlacakliFromDb(id) {
+  if (supabaseReady && supabaseClient) {
+    const { error } = await supabaseClient.from(ALACAKLI_TABLE_NAME).delete().eq("id", id);
+    if (error) throw error;
+  } else {
+    setAlacaklilarCache(getAlacaklilarCache().filter((item) => item.id !== id));
+    saveLegacyAlacaklilar(alacaklilarCache);
+    return;
+  }
+
+  setAlacaklilarCache(getAlacaklilarCache().filter((item) => item.id !== id));
+}
+
+function createLocalId() {
+  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function rowToKayit(row) {
@@ -91,7 +210,7 @@ function subscribeToChanges() {
   if (!supabaseClient || realtimeChannel) return;
 
   realtimeChannel = supabaseClient
-    .channel("kayitlar-changes")
+    .channel("app-changes")
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE_NAME },
@@ -100,7 +219,19 @@ function subscribeToChanges() {
           await fetchAllRecords();
           window.dispatchEvent(new CustomEvent("kayitlar-sync"));
         } catch (error) {
-          console.error("Senkron güncelleme hatası:", error);
+          console.error("Kayıt senkron hatası:", error);
+        }
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: ALACAKLI_TABLE_NAME },
+      async () => {
+        try {
+          await fetchAllAlacaklilar();
+          window.dispatchEvent(new CustomEvent("alacaklilar-sync"));
+        } catch (error) {
+          console.error("Alacaklı senkron hatası:", error);
         }
       }
     )
@@ -111,6 +242,7 @@ async function initSupabaseDb() {
   if (!isSupabaseConfigured()) {
     const legacy = loadLegacyRecords();
     setRecordsCache(legacy);
+    setAlacaklilarCache(loadLegacyAlacaklilar());
     supabaseReady = false;
     return false;
   }
@@ -123,6 +255,7 @@ async function initSupabaseDb() {
   supabaseClient = window.supabase.createClient(url, anonKey);
 
   await fetchAllRecords();
+  await fetchAllAlacaklilar();
   await migrateLegacyRecords();
   subscribeToChanges();
 
